@@ -11,40 +11,85 @@ A personal goal-management web app built with React 19 + Vite. Track yearly goal
 - Auto-fail goals when their deadline passes
 - Progress tracking via subgoal completion
 
-## Requirements
+---
 
-- [Node.js](https://nodejs.org/) v18 or higher (includes npm)
+## Windows Setup
 
-### Check if Node.js is installed
+### 1. Check if Node.js is installed
 
-Open a terminal and run:
+Open **Command Prompt** or **PowerShell** and run:
 
 ```bash
 node -v
 npm -v
 ```
 
-If you see version numbers (e.g. `v20.x.x`), you're good to go.  
-If you get a "command not found" error, [download Node.js here](https://nodejs.org/en/download) and install it, then re-run the commands above to confirm.
+If you see version numbers (e.g. `v20.x.x`), skip to step 2.  
+If you get an error, [download Node.js for Windows here](https://nodejs.org/en/download), run the installer, then re-run the commands above to confirm.
 
-## Getting Started
+### 2. Clone and run
+
+Open **Command Prompt** or **PowerShell**:
 
 ```bash
-# 1. Clone the repo
 git clone https://github.com/CGJock/Free-Goals-Tracker.git
 cd Free-Goals-Tracker
-
-# 2. Install dependencies
 npm install
+```
 
-# 3. Start the backend (port 3001) — in one terminal
+Then open **two separate terminal windows** in the project folder and run one command in each:
+
+```bash
+# Terminal 1 — backend
 npm run server
 
-# 4. Start the frontend (port 5173) — in another terminal
+# Terminal 2 — frontend
 npm run dev
 ```
 
 Then open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
+
+## Mac Setup
+
+### 1. Check if Node.js is installed
+
+Open **Terminal** and run:
+
+```bash
+node -v
+npm -v
+```
+
+If you see version numbers (e.g. `v20.x.x`), skip to step 2.  
+If you get an error, [download Node.js for Mac here](https://nodejs.org/en/download), run the `.pkg` installer, then re-run the commands above to confirm.
+
+> Alternatively, if you use Homebrew: `brew install node`
+
+### 2. Clone and run
+
+In **Terminal**:
+
+```bash
+git clone https://github.com/CGJock/Free-Goals-Tracker.git
+cd Free-Goals-Tracker
+npm install
+```
+
+Then open **two separate terminal tabs** (`Cmd + T`) in the project folder and run one command in each:
+
+```bash
+# Terminal 1 — backend
+npm run server
+
+# Terminal 2 — frontend
+npm run dev
+```
+
+Then open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
 
 > `db.json` is created automatically on first run — no setup needed.
 
