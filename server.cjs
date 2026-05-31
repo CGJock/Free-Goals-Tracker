@@ -10,6 +10,10 @@ const PORT = 3001
 const DB_PATH = path.join(__dirname, 'db.json')
 const MEDIA_DIR = path.join(__dirname, 'media')
 
+if (!fs.existsSync(DB_PATH)) {
+  fs.writeFileSync(DB_PATH, JSON.stringify({ goals: [] }, null, 2))
+}
+
 app.use(cors())
 app.use('/media', express.static(MEDIA_DIR))
 
