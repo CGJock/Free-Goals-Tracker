@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchGoals, fetchGoal, deleteGoal, updateGoal, MEDIA_BASE_URL } from '../api/goals'
-import { getImportance } from '../utils/importance'
+import { getImportance, IMPORTANCE_LEVELS } from '../utils/importance'
+import { getCategory, FALLBACK_ICON } from '../utils/categories'
 
 function computeProgress(subgoals) {
   if (!subgoals || subgoals.length === 0) return 0
@@ -160,6 +161,7 @@ export default function GoalList() {
   const [editSgDescription, setEditSgDescription] = useState('')
   const [editSgDeadline, setEditSgDeadline] = useState('')
   const [view, setView] = useState(() => localStorage.getItem('goals-view') || 'grid')
+  const [sortBy, setSortBy] = useState(() => localStorage.getItem('goals-sort') || 'default')
   const [calYear, setCalYear] = useState(new Date().getFullYear())
   const [activeMonth, setActiveMonth] = useState(null)
 
@@ -167,6 +169,25 @@ export default function GoalList() {
     setView(v)
     localStorage.setItem('goals-view', v)
     setActiveMonth(null)
+  }
+
+  function handleSortChange(e) {
+    const v = e.target.value
+    setSortBy(v)
+    localStorage.setItem('goals-sort', v)
+  }
+
+  function getSorted(list) {
+    if (sortBy === 'default') return list
+    const copy = [...list]
+    const importanceIndex = {}
+    IMPORTANCE_LEVELS.forEach((l, i) => { importanceIndex[l.value] = i })
+    copy.sort((a, b) => {
+      const ia = importanceIndex[a.importance] ?? 2
+      const ib = importanceIndex[b.importance] ?? 2
+      return sortBy === 'importance-asc' ? ia - ib : ib - ia
+    })
+    return copy
   }
 
   useEffect(() => {
@@ -296,13 +317,19 @@ export default function GoalList() {
             <button className={`view-btn${view === 'squares' ? ' active' : ''}`} onClick={() => changeView('squares')} title="Squares">⊡</button>
             <button className={`view-btn${view === 'calendar' ? ' active' : ''}`} onClick={() => changeView('calendar')} title="Calendar">▦</button>
           </div>
+          <select className="sort-select" value={sortBy} onChange={handleSortChange} title="Sort goals">
+            <option value="default">Sort: Default</option>
+            <option value="importance-asc">Sort: Importance ↑</option>
+            <option value="importance-desc">Sort: Importance ↓</option>
+          </select>
+          <Link to="/profile" className="btn btn-primary">Profile</Link>
           <Link to="/create" className="btn btn-primary">+ New Goal</Link>
         </div>
       </div>
       {/* ── GRID VIEW ── */}
       {view === 'grid' && (
         <div className="goals-grid">
-          {goals.map((goal) => {
+          {getSorted(goals).map((goal) => {
             const progress = computeProgress(goal.subgoals)
             const overdue = isOverdue(goal)
             return (
@@ -346,10 +373,17 @@ export default function GoalList() {
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <Link to={`/goal/${goal.id}`} className="card-title">{goal.title}</Link>
-                    <p className="card-desc">{goal.description}</p>
-                  </>
+                  <div className="card-body-row">
+                    <div className="card-body-text">
+                      <Link to={`/goal/${goal.id}`} className="card-title">{goal.title}</Link>
+                      <p className="card-desc">{goal.description}</p>
+                    </div>
+                    {(() => { const cat = getCategory(goal.category); const Icon = cat ? cat.Icon : FALLBACK_ICON; return (
+                      <span className={`card-cat-icon${cat ? '' : ' fallback'}`} title={cat ? cat.label : 'No category'}>
+                        <Icon size={22} />
+                      </span>
+                    )})()}
+                  </div>
                 )}
                 {goal.subgoals && goal.subgoals.length > 0 && (
                   <div className="progress-section">
@@ -416,7 +450,7 @@ export default function GoalList() {
       {/* ── LIST VIEW ── */}
       {view === 'list' && (
         <div className="goals-list">
-          {goals.map((goal) => {
+          {getSorted(goals).map((goal) => {
             const progress = computeProgress(goal.subgoals)
             const overdue = isOverdue(goal)
             const ri = goal.deadline ? remainingInfo(goal.deadline, goal.createdAt) : null
@@ -447,6 +481,11 @@ export default function GoalList() {
                   <div className="progress-bar"><div className="progress-fill" style={{ width: `${progress}%` }} /></div>
                   <span className="list-progress-pct">{progress}%</span>
                 </div>
+                {(() => { const cat = getCategory(goal.category); const Icon = cat ? cat.Icon : FALLBACK_ICON; return (
+                  <span className={`list-cat-icon${cat ? '' : ' fallback'}`} title={cat ? cat.label : 'No category'}>
+                    <Icon size={18} />
+                  </span>
+                )})()}
               </div>
             )
           })}
@@ -463,7 +502,7 @@ export default function GoalList() {
       {/* ── SQUARES VIEW ── */}
       {view === 'squares' && (
         <div className="goals-squares">
-          {goals.map((goal) => {
+          {getSorted(goals).map((goal) => {
             const progress = computeProgress(goal.subgoals)
             return (
               <Link key={goal.id} to={`/goal/${goal.id}`} className="goal-square">
@@ -476,6 +515,9 @@ export default function GoalList() {
                   <div className="square-meta">
                     <span className="square-dot" style={{ background: statusColor(goal.status) }} />
                     <span className="square-pct">{progress}%</span>
+                    {(() => { const cat = getCategory(goal.category); const Icon = cat ? cat.Icon : FALLBACK_ICON; return (
+                      <span className={`square-cat${cat ? '' : ' fallback'}`} title={cat ? cat.label : 'No category'}><Icon size={12} /></span>
+                    )})()}
                     <span style={{ marginLeft: 'auto', fontSize: '0.85rem' }} title={getImportance(goal.importance).label}>{getImportance(goal.importance).emoji}</span>
                   </div>
                 </div>
@@ -495,11 +537,11 @@ export default function GoalList() {
       {/* ── CALENDAR VIEW ── */}
       {view === 'calendar' && (() => {
         const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
-        const noDeadline = goals.filter(g => !g.deadline)
+        const noDeadline = getSorted(goals).filter(g => !g.deadline)
         const byMonth = MONTH_NAMES.map((name, i) => ({
           name,
           index: i,
-          goals: goals.filter(g => {
+          goals: getSorted(goals).filter(g => {
             if (!g.deadline) return false
             const d = new Date(g.deadline)
             return d.getFullYear() === calYear && d.getMonth() === i

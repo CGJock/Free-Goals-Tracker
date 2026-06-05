@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchGoal, updateGoal, deleteGoal, uploadMedia, deleteMedia, uploadCover, deleteCover, MEDIA_BASE_URL } from '../api/goals'
+import { fetchGoal, updateGoal, deleteGoal, uploadMedia, deleteMedia, uploadCover, deleteCover, uploadNoteMedia, deleteNoteMedia, MEDIA_BASE_URL } from '../api/goals'
 import { IMPORTANCE_LEVELS, DEFAULT_IMPORTANCE, getImportance } from '../utils/importance'
+import { CATEGORIES, DEFAULT_CATEGORY, getCategory, FALLBACK_ICON } from '../utils/categories'
 
 function computeProgress(subgoals) {
   if (!subgoals || subgoals.length === 0) return 0
@@ -86,6 +87,7 @@ export default function GoalDetail() {
   const [description, setDescription] = useState('')
   const [deadline, setDeadline] = useState('')
   const [importance, setImportance] = useState(DEFAULT_IMPORTANCE)
+  const [category, setCategory] = useState(DEFAULT_CATEGORY)
   const [editSgId, setEditSgId] = useState(null)
   const [editSgTitle, setEditSgTitle] = useState('')
   const [editSgDescription, setEditSgDescription] = useState('')
@@ -93,6 +95,16 @@ export default function GoalDetail() {
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef(null)
   const coverInputRef = useRef(null)
+
+  const [noteText, setNoteText] = useState('')
+  const [noteDate, setNoteDate] = useState(new Date().toISOString().slice(0, 10))
+  const [editNoteId, setEditNoteId] = useState(null)
+  const [editNoteText, setEditNoteText] = useState('')
+  const [editNoteDate, setEditNoteDate] = useState('')
+  const [uploadingNote, setUploadingNote] = useState(false)
+  const [notePendingFile, setNotePendingFile] = useState(null)
+  const noteFileRef = useRef(null)
+  const noteFileInputs = useRef({})
 
   useEffect(() => {
     loadGoal()
@@ -104,6 +116,7 @@ export default function GoalDetail() {
       setDescription(goal.description || '')
       setDeadline(toDateInput(goal.deadline))
       setImportance(goal.importance || DEFAULT_IMPORTANCE)
+      setCategory(goal.category || DEFAULT_CATEGORY)
     }
   }, [goal])
 
@@ -151,7 +164,7 @@ export default function GoalDetail() {
   }
 
   async function handleSave() {
-    const updated = await updateGoal(goal.id, { title, description, deadline: deadline || null, importance })
+    const updated = await updateGoal(goal.id, { title, description, deadline: deadline || null, importance, category })
     setGoal(updated)
     setEditing(false)
   }
@@ -250,6 +263,90 @@ export default function GoalDetail() {
     setGoal(updated)
   }
 
+  async function handleAddNote() {
+    if (!noteText.trim()) return
+    const current = await fetchGoal(goal.id)
+    const newNote = {
+      id: Date.now(),
+      content: noteText.trim(),
+      date: noteDate || new Date().toISOString().slice(0, 10),
+      createdAt: new Date().toISOString(),
+      media: [],
+    }
+    const notes = [...(current.notes || []), newNote]
+    let result = await updateGoal(goal.id, { notes })
+    if (notePendingFile) {
+      try {
+        setUploadingNote(true)
+        await uploadNoteMedia(goal.id, newNote.id, notePendingFile)
+        result = await fetchGoal(goal.id)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setUploadingNote(false)
+      }
+    }
+    setGoal(result)
+    setNoteText('')
+    setNoteDate(new Date().toISOString().slice(0, 10))
+    setNotePendingFile(null)
+    if (noteFileRef.current) noteFileRef.current.value = ''
+  }
+
+  async function handleDeleteNote(noteId) {
+    if (!confirm('Delete this note?')) return
+    const current = await fetchGoal(goal.id)
+    const notes = (current.notes || []).filter((n) => n.id !== noteId)
+    const result = await updateGoal(goal.id, { notes })
+    setGoal(result)
+  }
+
+  function startEditNote(note) {
+    setEditNoteId(note.id)
+    setEditNoteText(note.content)
+    setEditNoteDate(note.date)
+  }
+
+  function cancelEditNote() {
+    setEditNoteId(null)
+    setEditNoteText('')
+    setEditNoteDate('')
+  }
+
+  async function saveEditNote(noteId) {
+    if (!editNoteText.trim()) return
+    const current = await fetchGoal(goal.id)
+    const notes = (current.notes || []).map((n) =>
+      n.id === noteId ? { ...n, content: editNoteText.trim(), date: editNoteDate || n.date } : n
+    )
+    const result = await updateGoal(goal.id, { notes })
+    setGoal(result)
+    cancelEditNote()
+  }
+
+  async function handleNoteUpload(noteId, e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploadingNote(true)
+    try {
+      await uploadNoteMedia(goal.id, noteId, file)
+      const updated = await fetchGoal(goal.id)
+      setGoal(updated)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUploadingNote(false)
+      e.target.value = ''
+    }
+  }
+
+  async function handleDeleteNoteMedia(noteId, filename) {
+    if (!confirm('Remove this file?')) return
+    await deleteNoteMedia(goal.id, noteId, filename)
+    const updated = await fetchGoal(goal.id)
+    setGoal(updated)
+  }
+
   if (loading) return <div className="loading">Loading...</div>
   if (!goal) return <div className="loading">Goal not found</div>
 
@@ -302,6 +399,26 @@ export default function GoalDetail() {
                 </div>
               </div>
               <div className="form-group">
+                <label>Category</label>
+                <div className="category-selector">
+                  {CATEGORIES.map((cat) => {
+                    const active = category === cat.value
+                    return (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        className={`category-btn${active ? ' active' : ''}`}
+                        onClick={() => setCategory(cat.value)}
+                        title={cat.label}
+                      >
+                        <cat.Icon size={16} />
+                        <span>{cat.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="form-group">
                 <label>Cover Photo</label>
                 <div className="cover-edit-row">
                   {goal.cover ? (
@@ -341,6 +458,11 @@ export default function GoalDetail() {
           {(() => { const imp = getImportance(goal.importance); return (
             <span className="importance-badge" style={{ background: imp.color }} title={imp.label}>
               {imp.emoji} {imp.label}
+            </span>
+          )})()}
+          {(() => { const cat = getCategory(goal.category); const Icon = cat ? cat.Icon : FALLBACK_ICON; return (
+            <span className={`category-badge detail-category${cat ? '' : ' fallback'}`} title={cat ? cat.label : 'No category'}>
+              <Icon size={14} /> {cat ? cat.label : 'No category'}
             </span>
           )})()}
           <span className="year-badge">{goal.year}</span>
@@ -505,6 +627,134 @@ export default function GoalDetail() {
             </div>
           ) : (
             <p className="hint">No media yet. Click "+ Add" to attach images or videos.</p>
+          )}
+        </div>
+
+        <div className="notes-section">
+          <div className="notes-header">
+            <h2>Notes</h2>
+          </div>
+
+          <div className="note-add-form">
+            <textarea
+              className="note-input"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="What happened today? Celebrate wins, track setbacks…"
+              rows={3}
+            />
+            <div className="note-add-bar">
+              <div className="note-add-left">
+                <input
+                  type="date"
+                  className="note-date-input"
+                  value={noteDate}
+                  onChange={(e) => setNoteDate(e.target.value)}
+                />
+                <input
+                  ref={noteFileRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => { setNotePendingFile(e.target.files[0]); e.target.value = '' }}
+                />
+                <button
+                  className="btn btn-sm note-attach-btn"
+                  title="Upload image or video"
+                  onClick={() => noteFileRef.current?.click()}
+                  disabled={uploadingNote}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                {notePendingFile && <span className="note-file-name">{notePendingFile.name}</span>}
+              </div>
+              <button className="btn btn-sm btn-primary" onClick={handleAddNote} disabled={!noteText.trim() || uploadingNote}>
+                {uploadingNote ? 'Saving…' : '+ Add Note'}
+              </button>
+            </div>
+          </div>
+
+          {goal.notes && goal.notes.length > 0 ? (
+            <div className="notes-list">
+              {[...goal.notes].reverse().map((note) => {
+                const isEditing = editNoteId === note.id
+                return (
+                  <div key={note.id} className={`note-card${isEditing ? ' editing' : ''}`}>
+                    <div className="note-card-header">
+                      <span className="note-date">{note.date}</span>
+                      {!isEditing && (
+                        <div className="note-card-actions">
+                          <button className="btn-icon-note" title="Edit note" onClick={() => startEditNote(note)}>✏</button>
+                          <button className="btn-icon-note remove" title="Delete note" onClick={() => handleDeleteNote(note.id)}>🗑</button>
+                        </div>
+                      )}
+                    </div>
+                    {isEditing ? (
+                      <div className="note-edit-form">
+                        <textarea
+                          className="note-input"
+                          value={editNoteText}
+                          onChange={(e) => setEditNoteText(e.target.value)}
+                          rows={3}
+                          autoFocus
+                        />
+                        <div className="note-add-bar">
+                          <input
+                            type="date"
+                            className="note-date-input"
+                            value={editNoteDate}
+                            onChange={(e) => setEditNoteDate(e.target.value)}
+                          />
+                          <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            <button className="btn btn-sm btn-primary" onClick={() => saveEditNote(note.id)}>Save</button>
+                            <button className="btn btn-sm btn-secondary" onClick={cancelEditNote}>Cancel</button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="note-content">{note.content}</p>
+                    )}
+                    {note.media && note.media.length > 0 && (
+                      <div className="note-media">
+                        {note.media.map((m) => (
+                          <div key={m.filename} className="note-media-item">
+                            {m.mimetype.startsWith('image/') ? (
+                              <img
+                                src={`${MEDIA_BASE_URL}/${goal.id}/${m.filename}`}
+                                alt={m.originalName}
+                                onClick={() => window.open(`${MEDIA_BASE_URL}/${goal.id}/${m.filename}`, '_blank')}
+                              />
+                            ) : (
+                              <video src={`${MEDIA_BASE_URL}/${goal.id}/${m.filename}`} controls />
+                            )}
+                            <button className="media-delete" onClick={() => handleDeleteNoteMedia(note.id, m.filename)} title="Remove">✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="note-add-bar">
+                      <input
+                        ref={(el) => { noteFileInputs.current[note.id] = el }}
+                        type="file"
+                        accept="image/*,video/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleNoteUpload(note.id, e)}
+                      />
+                      <button
+                        className="btn btn-sm note-attach-btn"
+                        title="Upload image or video"
+                        disabled={uploadingNote}
+                        onClick={() => noteFileInputs.current[note.id]?.click()}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="hint">No notes yet. Start journaling your progress!</p>
           )}
         </div>
 

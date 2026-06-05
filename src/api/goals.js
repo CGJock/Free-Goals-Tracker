@@ -76,3 +76,22 @@ export async function deleteCover(goalId) {
   if (!res.ok) throw new Error('Failed to remove cover')
   return res.json()
 }
+
+export async function uploadNoteMedia(goalId, noteId, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await fetch(`${BASE_URL}/note-upload/${goalId}/${noteId}`, {
+    method: 'POST',
+    body: formData,
+  })
+  if (!res.ok) throw new Error('Failed to upload note file')
+  return res.json()
+}
+
+export async function deleteNoteMedia(goalId, noteId, filename) {
+  const res = await fetch(`${BASE_URL}/note-upload/${goalId}/${noteId}/${encodeURIComponent(filename)}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error('Failed to delete note file')
+  return res.json()
+}
