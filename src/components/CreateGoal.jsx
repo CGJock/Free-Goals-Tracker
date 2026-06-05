@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createGoal } from '../api/goals'
 import { IMPORTANCE_LEVELS, DEFAULT_IMPORTANCE } from '../utils/importance'
+import { CATEGORIES, DEFAULT_CATEGORY } from '../utils/categories'
 
 const emptySubgoal = () => ({ id: Date.now() + Math.random(), title: '', description: '', deadline: '', createdAt: new Date().toISOString(), status: 'not-started' })
 
@@ -18,6 +19,7 @@ export default function CreateGoal() {
   const [deadline, setDeadline] = useState('')
   const [subgoals, setSubgoals] = useState([])
   const [importance, setImportance] = useState(DEFAULT_IMPORTANCE)
+  const [category, setCategory] = useState(DEFAULT_CATEGORY)
   const [saving, setSaving] = useState(false)
 
   function addSubgoal() {
@@ -43,6 +45,7 @@ export default function CreateGoal() {
       description: description.trim(),
       status: 'in-progress',
       importance,
+      category,
       year,
       deadline: deadline || null,
       createdAt: new Date().toISOString(),
@@ -99,6 +102,26 @@ export default function CreateGoal() {
                   {level.emoji} {level.label}
                 </button>
               ))}
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Category</label>
+            <div className="category-selector">
+              {CATEGORIES.map((cat) => {
+                const active = category === cat.value
+                return (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    className={`category-btn${active ? ' active' : ''}`}
+                    onClick={() => setCategory(cat.value)}
+                    title={cat.label}
+                  >
+                    <cat.Icon size={16} />
+                    <span>{cat.label}</span>
+                  </button>
+                )
+              })}
             </div>
           </div>
           <div className="form-row">

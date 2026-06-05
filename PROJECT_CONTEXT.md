@@ -50,9 +50,11 @@ App
       "year":        number,
       "deadline":    string (ISO date) | null,
       "createdAt":   string (ISO datetime),
-    "subgoals": [
+      "subgoals": [
         { "id": number, "title": string, "description": string, "status": "not-started"|"in-progress"|"completed"|"failed" }
-    ]
+      ],
+      "media":       array (optional — uploads via /upload/:goalId),
+      "cover":       object (optional — cover image)
     }
   ]
 }
@@ -69,33 +71,34 @@ App
 ## Scripts
 
 ```bash
-npm run server    # start json-server on port 3001
+npm run server    # Express + json-server backend on port 3001 (server.cjs)
 npm run dev       # start Vite dev server (port 5173)
 npm run build     # production build to dist/
 npm run preview   # preview production build
 npm run lint      # ESLint check
 ```
 
-## Current Progress (db.json — snapshot 2026-05-28)
+## Current Progress (db.json — snapshot 2026-06-02)
 
 | # | Goal | Status | Year | Deadline | Subgoal Progress |
 |---|---|---|---|---|---|
-| 1 | Master React Development | in-progress | 2026 | 2026-12-31 | 1/3 (33%) |
+| 1 | Master React Development | in-progress | 2026 | 2026-12-31 | 0/3 (0%) |
 | 2 | Get Fit | not-started | 2026 | 2026-06-01 | 0/2 (0%) |
 | 3 | Read 12 Books | completed | 2025 | 2025-12-31 | 3/3 (100%) |
-| 4 | Learn Guitar | failed | 2026 | 2026-05-01 | 1/3 (33%) |
-| 5 | Licencia de conducir 2026 | in-progress | 2026 | — | 1/3 (33%) |
-| 6 | test | not-started | 2026 | 2026-05-29 | 0/1 (0%) |
+| 4 | Licencia de conducir 2026 | in-progress | 2026 | — | 0/3 (0%) |
+| 5 | test | failed | 2026 | 2026-05-29 | 0/1 (0%) |
+| 6 | Learn guitar | in-progress | 2026 | 2026-12-01 | 0/3 (0%) |
+| 7 | Viajar a algun lugar de costa rica | in-progress | 2026 | 2026-12-31 | 0/0 (—) |
 
-**Overall:** 6 goals — 1 completed, 2 in-progress, 1 failed, 2 not-started. 6/15 subgoals completed (40%).
+**Overall:** 7 goals — 1 completed, 4 in-progress, 1 failed, 1 not-started. 3/15 subgoals completed (20%).
 
 ## Notes & Observations
 
-- **No git repo** initialized yet (.gitignore exists from Vite scaffold).
-- **README.md** is still the default Vite template — not customized.
+- **Git repo** initialized (4 commits). README customized with Windows/Mac setup instructions.
 - **icons.svg** has social media icons (Bluesky, Discord, GitHub, X) not used in the UI.
 - **@types/react** installed but no TypeScript used.
+- **Media uploads** exist for goal id:8 (1 image + 1 cover image in `media/goals/8/`).
 - No state management library — pure React hooks + prop drilling.
-- Auto-fail logic runs on GoalList mount and GoalDetail mount (checks deadline).
-- "Licencia de conducir 2026" (id:5) and "test" (id:6) were added 2026-05-28 — likely the developer's most recent personal entries.
+- Auto-fail logic runs on GoalList mount and GoalDetail mount (checks deadline). "Get Fit" (deadline 2026-06-01) is overdue but still "not-started" — auto-fail hasn't been triggered since app isn't running.
 - Subgoal status cycles: not-started → in-progress → completed → failed → not-started.
+- "Viajar a algun lugar de costa rica" (id:8) is the newest goal (added ~2026-05-31), has no subgoals but includes uploaded media and a cover image.
